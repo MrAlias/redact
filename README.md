@@ -17,7 +17,7 @@ tracerProvider := trace.NewTracerProvider(
 )
 ```
 
-### Redact Spans based on name
+### (TODO) Redact Spans based on name
 
 Drop spans whose name is `"health-check"`.
 
@@ -28,7 +28,7 @@ tracerProvider := trace.NewTracerProvider(
 )
 ```
 
-### Redact Spans from an instrumentation scope
+### (TODO) Redact Spans from an instrumentation scope
 
 Drop spans from the `"noisy"` instrumentation library.
 

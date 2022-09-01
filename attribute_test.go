@@ -77,7 +77,7 @@ func TestAttributes(t *testing.T) {
 func testAttributes(opt trace.TracerProviderOption, attrs ...attribute.KeyValue) []attribute.KeyValue {
 	r := &attrRecorder{}
 	tp := trace.NewTracerProvider(opt, trace.WithSpanProcessor(r))
-	defer func() { tp.Shutdown(context.Background()) }()
+	defer func() { _ = tp.Shutdown(context.Background()) }()
 
 	ctx := context.Background()
 	tracer := tp.Tracer("testAttributes")

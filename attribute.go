@@ -23,6 +23,9 @@ import (
 
 const defaultReplace = "****REDACTED****"
 
+// Attributes returns an OpenTelemetry SDK TracerProviderOption. It registers
+// an OpenTelemetry SpanProcessor that redacts attributes of new spans matching
+// the passed keys.
 func Attributes(keys ...string) trace.TracerProviderOption {
 	r := make(map[attribute.Key]attribute.Value, len(keys))
 	for _, k := range keys {
@@ -32,6 +35,8 @@ func Attributes(keys ...string) trace.TracerProviderOption {
 	return trace.WithSpanProcessor(censor)
 }
 
+// AttributeCensor is an OpenTelemetry SpanProcessor that censors attributes of
+// new spans.
 type AttributeCensor struct {
 	// Replacements is a mapping of replacement values for a set of keys.
 	//
@@ -40,14 +45,15 @@ type AttributeCensor struct {
 	Replacements map[attribute.Key]attribute.Value
 }
 
-func (f AttributeCensor) OnStart(_ context.Context, s trace.ReadWriteSpan) {
-	// The Span SetAttributes method only overwrites attributes that already
-	// exists, it does not set the span attributes to only the values passed.
-	// Therefore, determine if there are any attributes that need to be
-	// redacted and set override only those values.
+// OnStart censors the attributes of s matching the Replacements keys of c.
+func (c AttributeCensor) OnStart(_ context.Context, s trace.ReadWriteSpan) {
+	// The SetAttributes method only overwrites attributes that already exists,
+	// it does not set the attributes to only the values passed. Therefore,
+	// determine if there are any attributes that need to be redacted and set
+	// overrides for only those values.
 	var redacted []attribute.KeyValue
 	for _, a := range s.Attributes() {
-		if v, ok := f.Replacements[a.Key]; ok {
+		if v, ok := c.Replacements[a.Key]; ok {
 			redacted = append(redacted, attribute.KeyValue{
 				Key:   a.Key,
 				Value: v,
@@ -59,6 +65,11 @@ func (f AttributeCensor) OnStart(_ context.Context, s trace.ReadWriteSpan) {
 	}
 }
 
-func (f AttributeCensor) OnEnd(trace.ReadOnlySpan)         {}
-func (f AttributeCensor) Shutdown(context.Context) error   { return nil }
-func (f AttributeCensor) ForceFlush(context.Context) error { return nil }
+// OnEnd does nothing.
+func (AttributeCensor) OnEnd(trace.ReadOnlySpan) {}
+
+// Shutdown does nothing.
+func (AttributeCensor) Shutdown(context.Context) error { return nil }
+
+// ForceFlush does nothing.
+func (AttributeCensor) ForceFlush(context.Context) error { return nil }

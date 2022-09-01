@@ -16,6 +16,7 @@ package redact // import "github.com/MrAlias/redact"
 
 import (
 	"context"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -85,30 +86,53 @@ func testAttributes(opt trace.TracerProviderOption, attrs ...attribute.KeyValue)
 	return r.attrs
 }
 
-func BenchmarkAttribute(b *testing.B) {
-	b.Run("Keys/0", benchmarkAttribute())
-	b.Run("Keys/1", benchmarkAttribute("secret"))
-	b.Run("Keys/2", benchmarkAttribute("secret", "password"))
+func BenchmarkAttributeCensorOnStart(b *testing.B) {
+	b.Run("0/16", benchAttributeCensorOnStart(0, 16))
+	b.Run("1/16", benchAttributeCensorOnStart(1, 16))
+	b.Run("2/16", benchAttributeCensorOnStart(2, 16))
+	b.Run("4/16", benchAttributeCensorOnStart(4, 16))
+	b.Run("8/16", benchAttributeCensorOnStart(8, 16))
+	b.Run("16/16", benchAttributeCensorOnStart(16, 16))
 }
 
-func benchmarkAttribute(keys ...string) func(*testing.B) {
-	ctx := context.Background()
-	tp := trace.NewTracerProvider(Attributes(keys...))
+type rwSpan struct {
+	trace.ReadWriteSpan
 
-	tracer := tp.Tracer("BenchmarkAttribute")
-	attrs := []attribute.KeyValue{
-		attribute.Bool("bool", true),
-		attribute.Int("secret", 42),
-		attribute.String("password", "secret password"),
+	attrs []attribute.KeyValue
+}
+
+func (rwSpan) SetAttributes(...attribute.KeyValue) {}
+func (s rwSpan) Attributes() []attribute.KeyValue {
+	return s.attrs
+}
+
+func benchAttributeCensorOnStart(redacted, total int) func(*testing.B) {
+	if redacted > total {
+		panic("redacted needs to be less than or equal to total")
 	}
 
+	replacements := make(map[attribute.Key]attribute.Value)
+	attrs := make([]attribute.KeyValue, total)
+	for i := range attrs {
+		key := attribute.Key(strconv.Itoa(i))
+		if i < redacted {
+			replacements[key] = attribute.StringValue(defaultReplace)
+		}
+		attrs[i] = attribute.KeyValue{
+			Key:   key,
+			Value: attribute.IntValue(i),
+		}
+	}
+
+	s := rwSpan{attrs: attrs}
+	ac := NewAttributeCensor(replacements)
+	ctx := context.Background()
+
 	return func(b *testing.B) {
-		b.Cleanup(func() { tp.Shutdown(ctx) })
 		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			_, s := tracer.Start(ctx, "span name", api.WithAttributes(attrs...))
-			s.End()
+			ac.OnStart(ctx, s)
 		}
 	}
 }

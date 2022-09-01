@@ -31,18 +31,29 @@ func Attributes(keys ...string) trace.TracerProviderOption {
 	for _, k := range keys {
 		r[attribute.Key(k)] = attribute.StringValue(defaultReplace)
 	}
-	censor := AttributeCensor{Replacements: r}
+	censor := NewAttributeCensor(r)
 	return trace.WithSpanProcessor(censor)
 }
 
 // AttributeCensor is an OpenTelemetry SpanProcessor that censors attributes of
 // new spans.
 type AttributeCensor struct {
-	// Replacements is a mapping of replacement values for a set of keys.
-	//
-	// If the replacement value of a key is invalid, that replacement will not
-	// be made by the SDK.
-	Replacements map[attribute.Key]attribute.Value
+	// args is a slice allocated on creation that is reused when calling
+	// SetAttributes in OnStart.
+	args         []attribute.KeyValue
+	replacements map[attribute.Key]attribute.Value
+}
+
+// NewAttributeCensor returns an AttributeCensor that uses the provided mapping
+// of replacement values for a set of keys to redact matching attributes.
+// Attributes are matched based on the equality of keys.
+func NewAttributeCensor(replacements map[attribute.Key]attribute.Value) AttributeCensor {
+	a := AttributeCensor{
+		// Allocate a reusable slice to pass to SetAttributes.
+		args:         make([]attribute.KeyValue, 0, len(replacements)),
+		replacements: replacements,
+	}
+	return a
 }
 
 // OnStart censors the attributes of s matching the Replacements keys of c.
@@ -51,9 +62,9 @@ func (c AttributeCensor) OnStart(_ context.Context, s trace.ReadWriteSpan) {
 	// it does not set the attributes to only the values passed. Therefore,
 	// determine if there are any attributes that need to be redacted and set
 	// overrides for only those values.
-	var redacted []attribute.KeyValue
+	redacted := c.args[:0]
 	for _, a := range s.Attributes() {
-		if v, ok := c.Replacements[a.Key]; ok {
+		if v, ok := c.replacements[a.Key]; ok {
 			redacted = append(redacted, attribute.KeyValue{
 				Key:   a.Key,
 				Value: v,

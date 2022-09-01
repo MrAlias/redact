@@ -39,21 +39,48 @@ func TestAttributes(t *testing.T) {
 	const key = "password"
 	var (
 		name     = attribute.String("name", "bob")
+		eID      = attribute.Int("employee-id", 9287)
 		passStr  = attribute.String(key, "super-secret-pswd")
 		passBool = attribute.Bool(key, true)
 		replaced = attribute.String(key, defaultReplace)
 	)
 
+	contains := func(t *testing.T, got []attribute.KeyValue, want ...attribute.KeyValue) {
+		t.Helper()
+		for _, w := range want {
+			assert.Contains(t, got, w)
+		}
+	}
+
+	t.Run("Empty", func(t *testing.T) {
+		got := testAttributes(Attributes(), name, passStr, eID)
+		contains(t, got, name, eID, passStr)
+	})
+
+	t.Run("SingleStringAttribute", func(t *testing.T) {
+		got := testAttributes(Attributes(key), name, passStr, eID)
+		contains(t, got, name, eID, replaced)
+	})
+
+	t.Run("NoMatchingKey", func(t *testing.T) {
+		got := testAttributes(Attributes("secret"), name, passStr, eID)
+		contains(t, got, name, eID, passStr)
+	})
+
+	t.Run("DifferentValueTypes", func(t *testing.T) {
+		got := testAttributes(Attributes(key), name, passBool, eID)
+		contains(t, got, name, eID, replaced)
+	})
+}
+
+func testAttributes(opt trace.TracerProviderOption, attrs ...attribute.KeyValue) []attribute.KeyValue {
 	r := &attrRecorder{}
-	tp := trace.NewTracerProvider(Attributes(key), trace.WithSpanProcessor(r))
-	t.Cleanup(func() { tp.Shutdown(context.Background()) })
+	tp := trace.NewTracerProvider(opt, trace.WithSpanProcessor(r))
+	defer func() { tp.Shutdown(context.Background()) }()
 
-	tracer := tp.Tracer("TestAttributes")
-	tracer.Start(context.Background(), "span name", api.WithAttributes(passStr, name))
-	assert.Contains(t, r.attrs, name)
-	assert.Contains(t, r.attrs, replaced)
-
-	tracer.Start(context.Background(), "span name", api.WithAttributes(name, passBool))
-	assert.Contains(t, r.attrs, name)
-	assert.Contains(t, r.attrs, replaced)
+	ctx := context.Background()
+	tracer := tp.Tracer("testAttributes")
+	_, s := tracer.Start(ctx, "span name", api.WithAttributes(attrs...))
+	s.End()
+	return r.attrs
 }

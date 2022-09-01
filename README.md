@@ -1,6 +1,9 @@
 # Redact
 
-An set of [OpenTelemetry] [TracerProviderOption]s to redact tracing data.
+Unfortunately, you are here.
+You have [OpenTelemetry] tracing data that shouldn't exist and you want it gone.
+Ideally, you are able to stop the generation of this data.
+But until that day arrives, `redact` can help!
 
 ## Getting Started
 
@@ -40,5 +43,4 @@ tracerProvider := trace.NewTracerProvider(
 ```
 
 [OpenTelemetry]: https://opentelemetry.io/
-[TracerProviderOption]: https://pkg.go.dev/go.opentelemetry.io/otel/sdk/trace#TracerProviderOption
 [TracerProvider]: https://pkg.go.dev/go.opentelemetry.io/otel/sdk/trace#TracerProvider

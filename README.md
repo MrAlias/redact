@@ -8,7 +8,7 @@ Pass your needed redact option to a new [OpenTelemetry] [TracerProvider].
 
 ### Redact Attributes
 
-Remove attributes from spans that have keys that match `"password"`, `"user"`, and `"secret"`.
+Replace attributes from new spans that have keys matching `"password"`, `"user"`, and `"secret"` with a redacted value.
 
 ```go
 tracerProvider := trace.NewTracerProvider(

@@ -84,3 +84,31 @@ func testAttributes(opt trace.TracerProviderOption, attrs ...attribute.KeyValue)
 	s.End()
 	return r.attrs
 }
+
+func BenchmarkAttribute(b *testing.B) {
+	b.Run("Keys/0", benchmarkAttribute())
+	b.Run("Keys/1", benchmarkAttribute("secret"))
+	b.Run("Keys/2", benchmarkAttribute("secret", "password"))
+}
+
+func benchmarkAttribute(keys ...string) func(*testing.B) {
+	ctx := context.Background()
+	tp := trace.NewTracerProvider(Attributes(keys...))
+
+	tracer := tp.Tracer("BenchmarkAttribute")
+	attrs := []attribute.KeyValue{
+		attribute.Bool("bool", true),
+		attribute.Int("secret", 42),
+		attribute.String("password", "secret password"),
+	}
+
+	return func(b *testing.B) {
+		b.Cleanup(func() { tp.Shutdown(ctx) })
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			_, s := tracer.Start(ctx, "span name", api.WithAttributes(attrs...))
+			s.End()
+		}
+	}
+}

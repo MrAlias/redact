@@ -20,7 +20,7 @@ tracerProvider := trace.NewTracerProvider(
 )
 ```
 
-### (TODO) Redact Spans based on name
+### Redact Spans based on name
 
 Drop spans whose name is `"health-check"`.
 

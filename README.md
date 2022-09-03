@@ -31,16 +31,5 @@ tracerProvider := trace.NewTracerProvider(
 )
 ```
 
-### (TODO) Redact Spans from an instrumentation scope
-
-Drop spans from the `"noisy"` instrumentation library.
-
-```go
-tracerProvider := trace.NewTracerProvider(
-	redact.Scope(instrumentation.Scope{Name: "noisy"}),
-	/* ... */
-)
-```
-
 [OpenTelemetry]: https://opentelemetry.io/
 [TracerProvider]: https://pkg.go.dev/go.opentelemetry.io/otel/sdk/trace#TracerProvider

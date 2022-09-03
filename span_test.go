@@ -16,6 +16,7 @@ package redact // import "github.com/MrAlias/redact"
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -52,4 +53,10 @@ func TestSpan(t *testing.T) {
 	got := sr.Ended()
 	require.Len(t, got, 1, "only one span should be exported")
 	assert.Equal(t, valid, got[0].Name())
+}
+
+func TestSpanCensorDescription(t *testing.T) {
+	sc := NewSpanCensor(trace.AlwaysSample())
+	expect := fmt.Sprintf("SpanCensor(%s)", trace.AlwaysSample().Description())
+	assert.Equal(t, expect, sc.Description())
 }

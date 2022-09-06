@@ -109,3 +109,27 @@ func TestSpanCensorDescription(t *testing.T) {
 	expect := fmt.Sprintf("SpanCensor(%s)", trace.AlwaysSample().Description())
 	assert.Equal(t, expect, sc.Description())
 }
+
+// Save benchmark result at file level so compiler does not in-line benchmark.
+var result trace.SamplingResult
+
+func BenchmarkSpanCensorShouldSample(b *testing.B) {
+	sc := NewSpanCensor(
+		trace.AlwaysSample(),
+		"admin",
+		"HTTP *",
+		"health?check*",
+		"client-??-op",
+	)
+	// Use parameters that will check match for exact and wildcard but
+	// ultimately use the default from parent. This will exercise the full
+	// Sampler.
+	p := trace.SamplingParameters{Name: "should-be-sampled-by-parent"}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for n := 0; n < b.N; n++ {
+		result = sc.ShouldSample(p)
+	}
+}

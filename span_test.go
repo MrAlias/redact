@@ -28,9 +28,9 @@ import (
 
 func TestSpan(t *testing.T) {
 	tester := NewSpanCensorTester(
-		"health-check",
 		"admin",
 		"HTTP *",
+		"health?check*",
 		"client-??-op",
 	)
 
@@ -38,12 +38,15 @@ func TestSpan(t *testing.T) {
 		name     string
 		redacted bool
 	}{
-		{name: "health-check", redacted: true},
 		{name: "admin", redacted: true},
 		{name: "HTTP GET", redacted: true},
 		{name: "HTTP POST", redacted: true},
+		{name: "health-check", redacted: true},
+		{name: "health-check-srv", redacted: true},
+		{name: "health_check my-service", redacted: true},
 		{name: "client-00-op", redacted: true},
 		{name: "client-ab-op", redacted: true},
+		{name: "client-1-op", redacted: false},
 		{name: "DB GET", redacted: false},
 		{name: "RPC serveData", redacted: false},
 	}

@@ -16,6 +16,8 @@ package redact // import "github.com/MrAlias/redact"
 
 import (
 	"fmt"
+	"regexp"
+	"strings"
 
 	"go.opentelemetry.io/otel/sdk/trace"
 	api "go.opentelemetry.io/otel/trace"
@@ -29,23 +31,47 @@ func Span(names ...string) trace.TracerProviderOption {
 type SpanCensor struct {
 	wrapped trace.Sampler
 	desc    string
-	names   map[string]struct{}
+	exact   map[string]struct{}
+	wcRe    *regexp.Regexp
 }
 
+// NewSpanCensor returns a new configured SpanCensor. Any span with a name
+// matching one of the passed names will be dropped. A name can be an exact
+// string match for the span name, or contain the wildcards of * for zero or
+// more characters and ? for exactly one character.
 func NewSpanCensor(parent trace.Sampler, names ...string) SpanCensor {
+	var wc []string
 	n := make(map[string]struct{}, len(names))
 	for _, name := range names {
-		n[name] = struct{}{}
+		if strings.ContainsAny(name, "*?") {
+			name = regexp.QuoteMeta(name)
+			name = strings.ReplaceAll(name, "\\?", ".")
+			name = strings.ReplaceAll(name, "\\*", ".*")
+			wc = append(wc, name)
+		} else {
+			n[name] = struct{}{}
+		}
+	}
+
+	var wcRe *regexp.Regexp
+	if len(wc) > 0 {
+		wcRe = regexp.MustCompile("^(?:" + strings.Join(wc, "|") + ")$")
 	}
 	return SpanCensor{
 		wrapped: parent,
 		desc:    fmt.Sprintf("SpanCensor(%s)", parent.Description()),
-		names:   n,
+		exact:   n,
+		wcRe:    wcRe,
 	}
 }
 
+func (s SpanCensor) match(name string) bool {
+	_, match := s.exact[name]
+	return match || (s.wcRe != nil && s.wcRe.MatchString(name))
+}
+
 func (s SpanCensor) ShouldSample(p trace.SamplingParameters) trace.SamplingResult {
-	if _, drop := s.names[p.Name]; drop {
+	if s.match(p.Name) {
 		return trace.SamplingResult{
 			Decision:   trace.Drop,
 			Tracestate: api.SpanContextFromContext(p.ParentContext).TraceState(),

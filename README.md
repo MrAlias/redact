@@ -22,11 +22,11 @@ tracerProvider := trace.NewTracerProvider(
 
 ### Redact Spans based on name
 
-Drop spans whose name is `"health-check"`.
+Drop spans whose name is `"really-annoying-span"` or any that match `"health?check*"`.
 
 ```go
 tracerProvider := trace.NewTracerProvider(
-	redact.Span("health-check"),
+	redact.Span("really-annoying-span", "health?check*"),
 	/* ... */
 )
 ```

@@ -23,11 +23,17 @@ import (
 	api "go.opentelemetry.io/otel/trace"
 )
 
+// Span returns an OpenTelemetry SDK TracerProviderOption. It registers an
+// OpenTelemetry Sampler that drops all spans with matching names. A name can
+// be the exact span name, or contain wildcards. See NewSpanCensor for
+// information about matching.
 func Span(names ...string) trace.TracerProviderOption {
 	parent := trace.ParentBased(trace.AlwaysSample())
 	return trace.WithSampler(NewSpanCensor(parent, names...))
 }
 
+// SpanCensor is an OpenTelemetry Sampler that drops spans with certain names.
+// See NewSpanCensor for information about name matching.
 type SpanCensor struct {
 	wrapped trace.Sampler
 	desc    string
@@ -37,8 +43,10 @@ type SpanCensor struct {
 
 // NewSpanCensor returns a new configured SpanCensor. Any span with a name
 // matching one of the passed names will be dropped. A name can be an exact
-// string match for the span name, or contain the wildcards of * for zero or
-// more characters and ? for exactly one character.
+// string match for the span name, or contain wildcards. The * wildcard is
+// expanded to match zero or more characters and the ? wildcard matches exactly
+// one character. One or more wildcards can be used in combination to match a
+// name.
 func NewSpanCensor(parent trace.Sampler, names ...string) SpanCensor {
 	var wc []string
 	n := make(map[string]struct{}, len(names))
@@ -70,6 +78,9 @@ func (s SpanCensor) match(name string) bool {
 	return match || (s.wcRe != nil && s.wcRe.MatchString(name))
 }
 
+// ShouldSample returns a sampling decision to drop when p contains a name
+// matching the SpanCensor criteria. Otherwise, the sampling decision is
+// delegated to the Sampler SpanCensor wraps.
 func (s SpanCensor) ShouldSample(p trace.SamplingParameters) trace.SamplingResult {
 	if s.match(p.Name) {
 		return trace.SamplingResult{
@@ -80,4 +91,5 @@ func (s SpanCensor) ShouldSample(p trace.SamplingParameters) trace.SamplingResul
 	return s.wrapped.ShouldSample(p)
 }
 
+// Description returns an identification description of the SpanCensor.
 func (s SpanCensor) Description() string { return s.desc }

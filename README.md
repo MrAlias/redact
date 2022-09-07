@@ -1,5 +1,7 @@
 # Redact
 
+[![Go Reference](https://pkg.go.dev/badge/github.com/MrAlias/redact.svg)](https://pkg.go.dev/github.com/MrAlias/redact)
+
 Unfortunately, you are here.
 You have [OpenTelemetry] tracing data that shouldn't exist and you want it gone.
 Ideally, you are able to stop the generation of this data.

@@ -62,7 +62,8 @@ func (c AttributeCensor) OnStart(_ context.Context, _ trace.ReadWriteSpan) {
 
 // OnEnd censors the attributes of s matching the Replacements keys of c.
 func (c AttributeCensor) OnEnd(s trace.ReadOnlySpan) {
-	// We can't change the span snapshot in OnEnd, but we can change attribute value
+    // We can't change the attribute slice of the span snapshot in OnEnd, but
+    // we can change the attribute value in the underlying array.
 	attributes := s.Attributes()
 	for i := range attributes {
 		if v, ok := c.replacements[attributes[i].Key]; ok {

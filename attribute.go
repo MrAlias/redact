@@ -56,28 +56,21 @@ func NewAttributeCensor(replacements map[attribute.Key]attribute.Value) Attribut
 	return a
 }
 
-// OnStart censors the attributes of s matching the Replacements keys of c.
-func (c AttributeCensor) OnStart(_ context.Context, s trace.ReadWriteSpan) {
-	// The SetAttributes method only overwrites attributes that already exists,
-	// it does not set the attributes to only the values passed. Therefore,
-	// determine if there are any attributes that need to be redacted and set
-	// overrides for only those values.
-	redacted := c.args[:0]
-	for _, a := range s.Attributes() {
-		if v, ok := c.replacements[a.Key]; ok {
-			redacted = append(redacted, attribute.KeyValue{
-				Key:   a.Key,
-				Value: v,
-			})
-		}
-	}
-	if len(redacted) > 0 {
-		s.SetAttributes(redacted...)
-	}
+// OnStart does nothing.
+func (c AttributeCensor) OnStart(_ context.Context, _ trace.ReadWriteSpan) {
 }
 
-// OnEnd does nothing.
-func (AttributeCensor) OnEnd(trace.ReadOnlySpan) {}
+// OnEnd censors the attributes of s matching the Replacements keys of c.
+func (c AttributeCensor) OnEnd(s trace.ReadOnlySpan) {
+    // We can't change the attribute slice of the span snapshot in OnEnd, but
+    // we can change the attribute value in the underlying array.
+	attributes := s.Attributes()
+	for i := range attributes {
+		if v, ok := c.replacements[attributes[i].Key]; ok {
+			attributes[i].Value = v
+		}
+	}
+}
 
 // Shutdown does nothing.
 func (AttributeCensor) Shutdown(context.Context) error { return nil }

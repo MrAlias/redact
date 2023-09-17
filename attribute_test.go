@@ -29,12 +29,12 @@ type attrRecorder struct {
 	attrs []attribute.KeyValue
 }
 
-func (*attrRecorder) OnEnd(trace.ReadOnlySpan)         {}
-func (*attrRecorder) Shutdown(context.Context) error   { return nil }
-func (*attrRecorder) ForceFlush(context.Context) error { return nil }
-func (r *attrRecorder) OnStart(_ context.Context, s trace.ReadWriteSpan) {
+func (r *attrRecorder) OnEnd(s trace.ReadOnlySpan) {
 	r.attrs = s.Attributes()
 }
+func (*attrRecorder) Shutdown(context.Context) error                   { return nil }
+func (*attrRecorder) ForceFlush(context.Context) error                 { return nil }
+func (*attrRecorder) OnStart(_ context.Context, _ trace.ReadWriteSpan) {}
 
 func TestAttributes(t *testing.T) {
 	const key = "password"
@@ -57,9 +57,17 @@ func TestAttributes(t *testing.T) {
 		got := testAttributes(Attributes(), name, passStr, eID)
 		contains(t, got, name, eID, passStr)
 	})
+	t.Run("EmptyAfterCreation", func(t *testing.T) {
+		got := testAttributesAfterCreation(Attributes(), name, passStr, eID)
+		contains(t, got, name, eID, passStr)
+	})
 
 	t.Run("SingleStringAttribute", func(t *testing.T) {
 		got := testAttributes(Attributes(key), name, passStr, eID)
+		contains(t, got, name, eID, replaced)
+	})
+	t.Run("SingleStringAttributeAfterCreation", func(t *testing.T) {
+		got := testAttributesAfterCreation(Attributes(key), name, passStr, eID)
 		contains(t, got, name, eID, replaced)
 	})
 
@@ -67,9 +75,17 @@ func TestAttributes(t *testing.T) {
 		got := testAttributes(Attributes("secret"), name, passStr, eID)
 		contains(t, got, name, eID, passStr)
 	})
+	t.Run("NoMatchingKeyAfterCreation", func(t *testing.T) {
+		got := testAttributesAfterCreation(Attributes("secret"), name, passStr, eID)
+		contains(t, got, name, eID, passStr)
+	})
 
 	t.Run("DifferentValueTypes", func(t *testing.T) {
 		got := testAttributes(Attributes(key), name, passBool, eID)
+		contains(t, got, name, eID, replaced)
+	})
+	t.Run("DifferentValueTypesAfterCreation", func(t *testing.T) {
+		got := testAttributesAfterCreation(Attributes(key), name, passBool, eID)
 		contains(t, got, name, eID, replaced)
 	})
 }
@@ -82,6 +98,19 @@ func testAttributes(opt trace.TracerProviderOption, attrs ...attribute.KeyValue)
 	ctx := context.Background()
 	tracer := tp.Tracer("testAttributes")
 	_, s := tracer.Start(ctx, "span name", api.WithAttributes(attrs...))
+	s.End()
+	return r.attrs
+}
+
+func testAttributesAfterCreation(opt trace.TracerProviderOption, attrs ...attribute.KeyValue) []attribute.KeyValue {
+	r := &attrRecorder{}
+	tp := trace.NewTracerProvider(opt, trace.WithSpanProcessor(r))
+	defer func() { _ = tp.Shutdown(context.Background()) }()
+
+	ctx := context.Background()
+	tracer := tp.Tracer("testAttributes")
+	_, s := tracer.Start(ctx, "span name")
+	s.SetAttributes(attrs...)
 	s.End()
 	return r.attrs
 }
@@ -133,6 +162,7 @@ func benchAttributeCensorOnStart(redacted, total int) func(*testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			ac.OnStart(ctx, s)
+			ac.OnEnd(s)
 		}
 	}
 }

@@ -13,9 +13,11 @@ jobs:
         with:
           fetch-depth: 0
       - uses: lycheeverse/lychee-action@v2.8.0
+        id: lychee
         with:
           args: >-
             -v -n "*.md" "**/*.md"
             --exclude "http://localhost*"
+            --exclude "^https://opentelemetry\\.io/?$"
       - name: fail for link errors
         run: exit ${{ steps.lychee.outputs.exit_code }}
